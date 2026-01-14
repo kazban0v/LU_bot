@@ -1,17 +1,22 @@
 import { add as addMessageToHistory, getGPTMessages } from "./history"
-import { openai } from "./openai"
+import { openai, geminiForImages } from "./openai"
 import { UserSession } from "./types/app"
 import { ChatRole, GPTMessage } from "./types/chat"
-import userRepository from "./db/repository/user"
 import Logger from "js-logger"
 
 // chatMessage adds a message to the history, sends a message to the GPT chat, the response from it is also saved to the history
 export const chatMessage = async (
   session: UserSession,
   text: string,
+  images?: Array<{ data: string; mimeType: string }>,
 ): Promise<string> => {
+  // Если есть изображения, добавляем текст с описанием
+  const messageText = images && images.length > 0 
+    ? (text || "Что изображено на этой фотографии?")
+    : text
+
   session.history = addMessageToHistory(session.history, {
-    content: text,
+    content: messageText,
     role: ChatRole.User,
     tokens: 0,
   }).history
@@ -19,7 +24,7 @@ export const chatMessage = async (
   let chatMessages: GPTMessage[] = getGPTMessages(session.history)
   if (session.character) {
     // Цhen using the character, the total tokens in fact will be greater than in history.
-    // This is not so bad, it’s just that the story will be able to accommodate a little less messages,
+    // This is not so bad, it's just that the story will be able to accommodate a little less messages,
     // but there will be no problem with limits
     chatMessages = [
       {
@@ -30,31 +35,26 @@ export const chatMessage = async (
     ]
   }
 
-  const completion = await openai.chat(session.userId, chatMessages)
-  if (!completion) {
-    throw new Error("GPT response error", completion)
+  // Если есть изображения и используется Groq, используем Gemini для обработки изображений
+  // Если Groq не используется, используем основной клиент (который уже Gemini)
+  const clientToUse = images && images.length > 0 && geminiForImages 
+    ? geminiForImages 
+    : openai
+  
+  const replyText = await clientToUse.chat(session.userId, chatMessages, images)
+  if (!replyText) {
+    Logger.error("[ЧАТ] AI вернул пустой ответ")
+    throw new Error("AI response error")
   }
-  const usage = completion.data.usage
-  const replyMessage = completion.data.choices[0].message
-
-  if (!replyMessage) {
-    throw new Error("[GPT] empty message")
-  }
-  const replyText = replyMessage.content
   const result = addMessageToHistory(
     session.history,
     {
       content: replyText,
       role: ChatRole.Assistant,
-      tokens: usage?.completion_tokens,
+      tokens: 0,
     },
-    usage?.total_tokens,
+    0,
   )
   session.history = result.history
-  Logger.debug("[Chat] UseTokens", {
-    userId: session.userId,
-    usage: result.usage,
-  })
-  await userRepository.useTokens(session.telegramId, result.usage)
   return replyText
 }

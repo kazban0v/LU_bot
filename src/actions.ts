@@ -3,24 +3,20 @@ import Logger from "js-logger"
 import { message } from "telegraf/filters"
 import { code } from "telegraf/format"
 import { getSession, resetSession } from "./session"
-import { convert, download, remove } from "./voice"
-import { openai } from "./openai"
 import { chatMessage } from "./chat"
 import { FmtString } from "telegraf/format"
-import { characterKeyboard, helpKeyboard, termsKeyboard } from "./keyboard"
-import { getCharacterMessage } from "./character"
+import { helpKeyboard } from "./keyboard"
 import messages from "./messages"
 import * as packageJson from "../package.json"
-import config from "config"
-import userRepository from "./db/repository/user"
+import axios from "axios"
+import fs from "fs"
+import path from "path"
 
 export const start = async (ctx: BotContext) => {
   const session = await getSession(ctx)
   const hello = messages.m("start.hello", { username: session.firstname })
-  const botVersion: string = packageJson.version.replace(/\./g, "\\.")
-  const version = `🤖 *GPT\\-бот v${botVersion}*`
   const aboutMessage = messages.m("start.about")
-  ctx.replyWithMarkdownV2(hello + "\n\n" + aboutMessage + "\n\n" + version)
+  ctx.replyWithMarkdownV2(hello + "\n\n" + aboutMessage)
 }
 
 export const help = async (ctx: BotContext) => {
@@ -29,45 +25,118 @@ export const help = async (ctx: BotContext) => {
 }
 
 export const balance = async (ctx: BotContext) => {
-  const session = await getSession(ctx)
-  const user = await userRepository.getByTelegramId(session.telegramId)
-  if (user) {
-    const message = messages.m("balance.info", {
-      id: user._id,
-      balance: user.tokens.balance,
-      used: user.tokens.used,
-    })
-    ctx.replyWithMarkdownV2(message)
-  }
+  await ctx.reply("Баланс токенов больше не используется, бот для тебя полностью бесплатный 💙")
 }
 
 export async function hearsVoice(ctx: BotContext) {
+  await ctx.reply(
+    "Пока что я понимаю только текстовые сообщения. Голос позже тоже научусь распознавать 💬",
+  )
+}
+
+// Функция для скачивания и конвертации изображения в base64
+async function downloadImageAsBase64(fileId: string, ctx: BotContext): Promise<{ data: string; mimeType: string; savedPath?: string } | null> {
+  try {
+    const file = await ctx.telegram.getFile(fileId)
+    const fileUrl = `https://api.telegram.org/file/bot${ctx.telegram.token}/${file.file_path}`
+    
+    const response = await axios.get(fileUrl, {
+      responseType: 'arraybuffer'
+    })
+    
+    const buffer = Buffer.from(response.data)
+    const base64 = buffer.toString('base64')
+    
+    // Определяем MIME тип по расширению файла
+    const extension = file.file_path?.split('.').pop()?.toLowerCase() || 'jpg'
+    let mimeType = 'image/jpeg' // по умолчанию
+    if (extension === 'png') mimeType = 'image/png'
+    else if (extension === 'gif') mimeType = 'image/gif'
+    else if (extension === 'webp') mimeType = 'image/webp'
+    
+    // Сохраняем фото в папку для просмотра
+    const photosDir = path.join(process.cwd(), 'received_photos')
+    if (!fs.existsSync(photosDir)) {
+      fs.mkdirSync(photosDir, { recursive: true })
+    }
+    
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const filename = `photo_${timestamp}_${fileId.substring(0, 8)}.${extension}`
+    const savedPath = path.join(photosDir, filename)
+    
+    fs.writeFileSync(savedPath, buffer)
+    
+    Logger.info(`[ФОТО] Сохранено: ${savedPath} (${(buffer.length / 1024).toFixed(2)} KB, ${mimeType})`)
+    
+    return { data: base64, mimeType, savedPath }
+  } catch (error) {
+    Logger.error("[Image] Error downloading image", error)
+    return null
+  }
+}
+
+export async function hearsPhoto(ctx: BotContext) {
   const typing = sendTypingInterval(ctx)
   try {
-    if (!ctx.has(message("voice"))) {
-      throw new Error("Attempted to process the voice, but it is not there")
+    if (!ctx.has(message("photo"))) {
+      throw new Error("No photo in message")
     }
+    
     const session = await getSession(ctx)
-
-    // 1. Get file-link, download, convert
-    const waitMessage = await ctx.reply(code(messages.m("waiting.audio")))
-    const link = await ctx.telegram.getFileLink(ctx.message.voice.file_id)
-    const ogg = await download(link.href, session.userId)
-    const mp3 = await convert(ogg)
-    await remove(ogg)
-
-    // 2. Transcription
-    const text = await openai.transcription(mp3)
-    await remove(mp3)
-    await editMessage(
-      ctx,
-      { chat_id: waitMessage.chat.id, message_id: waitMessage.message_id },
-      code(text),
-    )
-
-    // 3. Get answer
-    const answer = await sendToChat(ctx, session, text)
-    await ctx.reply(answer, { reply_to_message_id: ctx.message.message_id })
+    const photo = ctx.message.photo
+    
+    // Берем фото наибольшего размера (последнее в массиве)
+    const largestPhoto = photo[photo.length - 1]
+    const caption = ctx.message.caption || ""
+    
+    // Логируем что пользователь отправил фото
+    Logger.info(`[ЧАТ] ${session.firstname} отправил фото${caption ? ` с текстом: "${caption}"` : ''}`)
+    Logger.info(`[ФОТО] Размеры фото: ${photo.map(p => `${p.width}x${p.height}`).join(', ')}`)
+    
+    const waitMessage = await ctx.reply(code(messages.m("waiting.text")), {
+      reply_to_message_id: ctx.message.message_id,
+    })
+    
+    // Скачиваем и конвертируем изображение
+    const imageData = await downloadImageAsBase64(largestPhoto.file_id, ctx)
+    if (!imageData) {
+      await editMessage(
+        ctx,
+        { chat_id: waitMessage.chat.id, message_id: waitMessage.message_id },
+        "Не удалось обработать изображение 😔",
+      )
+      return
+    }
+    
+    // Показываем путь к сохраненному фото
+    if (imageData.savedPath) {
+      Logger.info(`[ФОТО] 📷 Фото сохранено: ${imageData.savedPath}`)
+    }
+    
+    const answer = await sendToChatWithImage(ctx, session, caption, [imageData])
+    
+    // Логируем ответ бота на фото
+    Logger.info(`[ЧАТ] Бот ответил на фото: "${answer.substring(0, 100)}${answer.length > 100 ? '...' : ''}"`)
+    
+    // telegram message limit
+    if (answer.length > 4096) {
+      const parts = answer.match(/[\s\S]{1,4096}/g)!
+      const first = parts.shift() || ""
+      await editMessage(
+        ctx,
+        { chat_id: waitMessage.chat.id, message_id: waitMessage.message_id },
+        first,
+      )
+      parts.forEach((part) => {
+        sendMessage(ctx, part)
+      })
+    } else {
+      await editMessage(
+        ctx,
+        { chat_id: waitMessage.chat.id, message_id: waitMessage.message_id },
+        answer,
+      )
+    }
   } catch (e: any) {
     errorReply(ctx, e)
   } finally {
@@ -82,10 +151,17 @@ export async function hearsText(ctx: BotContext) {
       throw new Error("No text in message")
     }
     const session = await getSession(ctx)
+    
+    // Логируем что пользователь отправил
+    Logger.info(`[ЧАТ] ${session.firstname} отправил: "${ctx.message.text}"`)
+    
     const waitMessage = await ctx.reply(code(messages.m("waiting.text")), {
       reply_to_message_id: ctx.message.message_id,
     })
     const answer = await sendToChat(ctx, session, ctx.message.text)
+    
+    // Логируем ответ бота
+    Logger.info(`[ЧАТ] Бот ответил: "${answer.substring(0, 100)}${answer.length > 100 ? '...' : ''}"`)
     // telegram message limit
     if (answer.length > 4096) {
       const parts = answer.match(/[\s\S]{1,4096}/g)!
@@ -123,79 +199,26 @@ export async function reset(ctx: BotContext) {
 }
 
 export async function character(ctx: BotContext) {
-  try {
-    await ctx.reply(messages.m("character.choice"), characterKeyboard)
-  } catch (e: any) {
-    errorReply(ctx, e)
-  }
+  await ctx.reply(
+    "Я уже настроен отвечать как Бейбит – менять персонажа не нужно 🧡",
+  )
 }
 
 export async function terms(ctx: BotContext & { match?: RegExpExecArray }) {
-  try {
-    const currentPage = ctx.match ? parseInt(ctx.match[1]) : 1
-    const pages: string[] = config.get("terms")
-
-    const session = await getSession(ctx)
-    const isAgreed = await userRepository.getTermsIsAgreed(session.telegramId)
-    const keyboard = termsKeyboard(currentPage, pages.length, isAgreed)
-    const text =
-      pages[currentPage - 1] + `\n\n*\\[${currentPage}/${pages.length}\\]*`
-    if (ctx.callbackQuery?.id) {
-      await ctx.telegram.editMessageText(
-        ctx.chat!.id,
-        ctx.callbackQuery.message!.message_id,
-        undefined,
-        text,
-        {
-          ...keyboard,
-          parse_mode: "MarkdownV2",
-          disable_web_page_preview: true,
-        },
-      )
-      await ctx.answerCbQuery()
-    } else {
-      await ctx.replyWithMarkdownV2(text, keyboard)
-    }
-  } catch (e: any) {
-    errorReply(ctx, e)
-  }
+  await ctx.reply(
+    "Это личный бот, никаких пользовательских соглашений и ограничений по использованию нет 🙂",
+  )
 }
 export async function termsOk(ctx: BotContext & { match: RegExpExecArray }) {
-  try {
-    const isAgreed = !!parseInt(ctx.match[1])
-    const session = await getSession(ctx)
-    await userRepository.setTermsIsAgreed(session.telegramId, isAgreed)
-    const text = isAgreed
-      ? messages.m("terms.accepted")
-      : messages.m("terms.notAccepted")
-    const termsMessage = ctx.callbackQuery?.message
-    if (termsMessage) {
-      ctx.deleteMessage(termsMessage.message_id)
-    }
-
-    await ctx.answerCbQuery()
-    await ctx.reply(text)
-    return
-  } catch (e: any) {
-    errorReply(ctx, e)
-  }
+  await ctx.reply("Спасибо, что пользуешься ботом 💙")
 }
 
 export async function characterCallback(
   ctx: BotContext & { match: RegExpExecArray },
 ) {
-  try {
-    const action = ctx.match[1]
-    const session = await resetSession(ctx)
-    // const message = await getCharacterMessage(+action)
-    session.character = await getCharacterMessage(+action)
-    // const answer = await sendToChat(ctx, session, message)
-    await ctx.answerCbQuery()
-    await ctx.reply(messages.m("character.selected"))
-    return
-  } catch (e: any) {
-    errorReply(ctx, e)
-  }
+  await ctx.reply(
+    "Смена персонажа отключена, я всегда буду отвечать как Бейбит ❤️",
+  )
 }
 
 // Need to be closed
@@ -230,6 +253,21 @@ const sendToChat = async (
 ): Promise<string> => {
   try {
     return await chatMessage(session, text)
+  } catch (e) {
+    await ctx.reply(messages.m("error.gpt"))
+    Logger.error(e)
+    throw e
+  }
+}
+
+const sendToChatWithImage = async (
+  ctx: BotContext,
+  session: UserSession,
+  text: string,
+  images: Array<{ data: string; mimeType: string }>,
+): Promise<string> => {
+  try {
+    return await chatMessage(session, text, images)
   } catch (e) {
     await ctx.reply(messages.m("error.gpt"))
     Logger.error(e)

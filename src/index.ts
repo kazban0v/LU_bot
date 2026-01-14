@@ -3,18 +3,7 @@ import { Telegraf, session } from "telegraf"
 import { message } from "telegraf/filters"
 import Logger from "js-logger"
 import { BotContext, Environment } from "./types/app"
-import {
-  character,
-  characterCallback,
-  hearsText,
-  hearsVoice,
-  balance,
-  help,
-  reset,
-  start,
-  terms,
-  termsOk,
-} from "./actions"
+import { hearsText, hearsPhoto, help, reset, start } from "./actions"
 import { defaultSession } from "./session"
 import { checkConfig, checkSession, checkUser } from "./middleware"
 
@@ -31,21 +20,12 @@ bot.use(session({ defaultSession }), checkConfig, checkSession)
 // Commands and listening
 bot.start(start)
 bot.help(help)
-bot.command("balance", balance)
 bot.command("reset", reset)
-bot.command("character", character)
-
-bot.command("terms", terms)
-bot.action(/^terms:(\d+)$/, terms)
-bot.action(/^terms-ok:([0|1])$/, termsOk)
 
 // Дальше можно только с положительным балансом
 bot.use(checkUser)
-bot.on(message("voice"), hearsVoice)
 bot.on(message("text"), hearsText)
-
-// Callbacks
-bot.action(/^character:(\d+)$/, characterCallback)
+bot.on(message("photo"), hearsPhoto)
 
 bot.launch()
 

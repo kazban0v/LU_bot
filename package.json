@@ -1,38 +1,41 @@
 {
-  "name": "gpt-bot",
-  "version": "0.5.3",
-  "scripts": {
-    "dev": "NODE_ENV=development nodemon",
-    "dev-cli": "NODE_ENV=development ts-node ./src/cli.ts",
-    "build": "rm dist -rf && tsc && cp -R voices ./dist/voices",
-    "start": "NODE_ENV=production node ./dist/src/index.js",
-    "cli": "NODE_ENV=production node ./dist/src/cli.js"
-  },
-  "repository": "https://github.com/tikhomirovv/gpt-bot.git",
-  "author": "Valerii Tikhomirov <v.tikhomirov.dev@gmail.com>",
-  "license": "MIT",
-  "dependencies": {
-    "@ffmpeg-installer/ffmpeg": "^1.1.0",
-    "axios": "^1.4.0",
-    "commander": "^11.0.0",
-    "config": "^3.3.9",
-    "crypto-js": "^4.1.1",
-    "dotenv": "^16.0.3",
-    "ffmpeg": "^0.0.4",
-    "fluent-ffmpeg": "^2.1.2",
-    "js-logger": "^1.6.1",
-    "mongoose": "^7.4.1",
-    "openai": "^3.2.1",
-    "telegraf": "^4.12.2"
-  },
-  "devDependencies": {
-    "@types/config": "^3.3.0",
-    "@types/crypto-js": "^4.1.1",
-    "@types/fluent-ffmpeg": "^2.1.21",
-    "@types/node": "^18.16.3",
-    "nodemon": "^3.0.2",
-    "prettier": "^3.0.0",
-    "ts-node": "^10.9.1",
-    "typescript": "^5.0.4"
-  }
+    "name": "gpt-bot",
+    "version": "0.5.3",
+    "scripts": {
+        "dev": "set NODE_ENV=development&& nodemon",
+        "dev-cli": "set NODE_ENV=development&& ts-node ./src/cli.ts",
+        "build": "rimraf dist && tsc && (cp -r voices dist/voices 2>/dev/null || true)",
+        "start": "NODE_ENV=production node ./dist/src/index.js",
+        "cli": "NODE_ENV=production node ./dist/src/cli.js"
+    },
+    "repository": "https://github.com/tikhomirovv/gpt-bot.git",
+    "author": "Valerii Tikhomirov <v.tikhomirov.dev@gmail.com>",
+    "license": "MIT",
+    "dependencies": {
+        "@ffmpeg-installer/ffmpeg": "^1.1.0",
+        "@google/generative-ai": "^0.24.1",
+        "axios": "^1.4.0",
+        "better-sqlite3": "^9.4.0",
+        "commander": "^11.0.0",
+        "config": "^3.3.9",
+        "crypto-js": "^4.1.1",
+        "dotenv": "^16.6.1",
+        "ffmpeg": "^0.0.4",
+        "fluent-ffmpeg": "^2.1.2",
+        "groq-sdk": "^0.37.0",
+        "js-logger": "^1.6.1",
+        "telegraf": "^4.12.2"
+    },
+    "devDependencies": {
+        "@types/better-sqlite3": "^7.6.9",
+        "@types/config": "^3.3.0",
+        "@types/crypto-js": "^4.1.1",
+        "@types/fluent-ffmpeg": "^2.1.21",
+        "@types/node": "^18.16.3",
+        "nodemon": "^3.0.2",
+        "prettier": "^3.0.0",
+        "rimraf": "^6.1.2",
+        "ts-node": "^10.9.1",
+        "typescript": "^5.0.4"
+    }
 }

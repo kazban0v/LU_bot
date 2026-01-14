@@ -1,20 +1,27 @@
-import { env } from "../env" // TODO: починить `@` alias
-import mongoose, { Connection } from "mongoose"
+import Database from "better-sqlite3"
+import path from "path"
+import fs from "fs"
+import { env } from "../env"
 
-const MONGO_URL = `mongodb://${env.MONGO_USERNAME}:${env.MONGO_PASSWORD}@${env.MONGO_HOST_PORT}`
-const connect = (): Connection | null => {
-  if (!env.MONGO_HOST_PORT) {
-    return null
-  }
-  return mongoose.createConnection(MONGO_URL, {
-    dbName: "gpt",
-    readPreference: "primary",
-    ssl: false,
-    directConnection: true,
-  })
-}
+const dbPath =
+  env.SQLITE_DB_PATH || path.join(process.cwd(), "data", "bot.sqlite")
 
-export const connection = connect()
-export const isConnected = () => {
-    return connection?.readyState === 1
-}
+// ensure folder exists
+fs.mkdirSync(path.dirname(dbPath), { recursive: true })
+
+export const connection = new Database(dbPath)
+connection.pragma("journal_mode = WAL")
+
+// simple users table – только id, telegram и username
+connection
+  .prepare(
+    `CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      telegram_id INTEGER UNIQUE NOT NULL,
+      username TEXT,
+      created_at TEXT NOT NULL
+    )`,
+  )
+  .run()
+
+export const isConnected = () => !!connection

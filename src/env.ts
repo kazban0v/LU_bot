@@ -12,18 +12,16 @@ if (fs.existsSync(local)) {
 
 interface Env {
   TELEGRAM_TOKEN: string
-  OPENAI_KEY: string
+  GEMINI_API_KEY: string
+  GROQ_API_KEY: string | null
   ENV: Environment
-  MONGO_HOST_PORT: string | null
-  MONGO_USERNAME: string | null
-  MONGO_PASSWORD: string | null
+  SQLITE_DB_PATH: string | null
 }
 
 export const env: Env = {
   TELEGRAM_TOKEN: process.env.TELEGRAM_TOKEN!,
-  OPENAI_KEY: process.env.OPENAI_KEY!,
-  MONGO_HOST_PORT: process.env.MONGO_HOST_PORT || null,
-  MONGO_USERNAME: process.env.MONGO_USERNAME || null,
-  MONGO_PASSWORD: process.env.MONGO_PASSWORD || null,
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY!,
+  GROQ_API_KEY: process.env.GROQ_API_KEY || null,
+  SQLITE_DB_PATH: process.env.SQLITE_DB_PATH || null,
   ENV: (process.env.NODE_ENV as Environment) || Environment.Production,
 }

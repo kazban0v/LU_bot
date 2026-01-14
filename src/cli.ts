@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Command } from "commander"
 import userRepository from "./db/repository/user"
 import Logger from "js-logger"

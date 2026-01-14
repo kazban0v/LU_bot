@@ -25,14 +25,20 @@ export const getSession = async (ctx: BotContext): Promise<UserSession> => {
 
 export const newSession = async (ctx: BotContext): Promise<UserSession> => {
   const telegramId = await getId(ctx)
-  const username = ctx.from!.username || ''
+  const username = ctx.from!.username || ""
   const model = await userRepository.firstOrCreate(telegramId, username)
   return {
-    userId: model ? model._id : generateUserId(telegramId),
+    userId: model ? model.id : generateUserId(telegramId),
     telegramId,
     username,
     firstname: ctx.from!.first_name,
     history: { messages: [], tokens: 0 },
+    // Роль по умолчанию: Бейбит – парень для своей девушки
+    character:
+      "Ты – парень по имени Бейбит. Ты переписываешься со своей девушкой в Telegram. " +
+      "Отвечай очень тепло, заботливо и по-домашнему, иногда с лёгким юмором и смайликами. " +
+      "Пиши по-русски, как в обычном живом чате, не как формальный ИИ. " +
+      "Не говори, что ты модель или бот, отвечай так, будто ты настоящий Бейбит.",
   }
 }
 
