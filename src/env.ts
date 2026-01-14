@@ -18,11 +18,20 @@ interface Env {
   SQLITE_DB_PATH: string | null
 }
 
+// Отладочная информация (только в production для диагностики)
+if (process.env.NODE_ENV === 'production') {
+  console.log('Available env vars:', Object.keys(process.env).filter(k => 
+    k.includes('TELEGRAM') || k.includes('GEMINI') || k.includes('GROQ')
+  ))
+}
+
 // Проверка обязательных переменных окружения
 if (!process.env.TELEGRAM_TOKEN) {
+  console.error('Missing TELEGRAM_TOKEN. Available env vars:', Object.keys(process.env))
   throw new Error("TELEGRAM_TOKEN is required. Please set it in Railway Variables.")
 }
 if (!process.env.GEMINI_API_KEY) {
+  console.error('Missing GEMINI_API_KEY. Available env vars:', Object.keys(process.env))
   throw new Error("GEMINI_API_KEY is required. Please set it in Railway Variables.")
 }
 
