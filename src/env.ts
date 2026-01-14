@@ -18,6 +18,14 @@ interface Env {
   SQLITE_DB_PATH: string | null
 }
 
+// Проверка обязательных переменных окружения
+if (!process.env.TELEGRAM_TOKEN) {
+  throw new Error("TELEGRAM_TOKEN is required. Please set it in Railway Variables.")
+}
+if (!process.env.GEMINI_API_KEY) {
+  throw new Error("GEMINI_API_KEY is required. Please set it in Railway Variables.")
+}
+
 export const env: Env = {
   TELEGRAM_TOKEN: process.env.TELEGRAM_TOKEN!,
   GEMINI_API_KEY: process.env.GEMINI_API_KEY!,
