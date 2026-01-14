@@ -21,11 +21,21 @@ interface Env {
 // Функция для получения переменной окружения с обрезкой пробелов
 const getEnv = (key: string): string | undefined => {
   // Проверяем точное совпадение
-  if (process.env[key]) return process.env[key]
+  if (process.env[key]) {
+    console.log(`[ENV] Found ${key} (exact match)`)
+    return process.env[key]
+  }
   // Проверяем с пробелом в конце (на случай ошибки в Railway)
-  if (process.env[`${key} `]) return process.env[`${key} `]?.trim()
+  if (process.env[`${key} `]) {
+    console.log(`[ENV] Found ${key} (with trailing space)`)
+    return process.env[`${key} `]?.trim()
+  }
   // Проверяем с пробелом в начале
-  if (process.env[` ${key}`]) return process.env[` ${key}`]?.trim()
+  if (process.env[` ${key}`]) {
+    console.log(`[ENV] Found ${key} (with leading space)`)
+    return process.env[` ${key}`]?.trim()
+  }
+  console.log(`[ENV] Not found ${key}`)
   return undefined
 }
 

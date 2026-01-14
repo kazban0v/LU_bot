@@ -89,9 +89,13 @@ export async function hearsPhoto(ctx: BotContext) {
     const largestPhoto = photo[photo.length - 1]
     const caption = ctx.message.caption || ""
     
-    // Логируем что пользователь отправил фото
-    Logger.info(`[ЧАТ] ${session.firstname} отправил фото${caption ? ` с текстом: "${caption}"` : ''}`)
-    Logger.info(`[ФОТО] Размеры фото: ${photo.map(p => `${p.width}x${p.height}`).join(', ')}`)
+    // Логируем что пользователь отправил фото (используем console.log для Railway)
+    const logPhoto = `[ЧАТ] ${session.firstname} отправил фото${caption ? ` с текстом: "${caption}"` : ''}`
+    const logPhotoSize = `[ФОТО] Размеры фото: ${photo.map(p => `${p.width}x${p.height}`).join(', ')}`
+    console.log(logPhoto)
+    console.log(logPhotoSize)
+    Logger.info(logPhoto)
+    Logger.info(logPhotoSize)
     
     const waitMessage = await ctx.reply(code(messages.m("waiting.text")), {
       reply_to_message_id: ctx.message.message_id,
@@ -108,15 +112,19 @@ export async function hearsPhoto(ctx: BotContext) {
       return
     }
     
-    // Показываем путь к сохраненному фото
+    // Показываем путь к сохраненному фото (используем console.log для Railway)
     if (imageData.savedPath) {
-      Logger.info(`[ФОТО] 📷 Фото сохранено: ${imageData.savedPath}`)
+      const logPhotoPath = `[ФОТО] 📷 Фото сохранено: ${imageData.savedPath}`
+      console.log(logPhotoPath)
+      Logger.info(logPhotoPath)
     }
     
     const answer = await sendToChatWithImage(ctx, session, caption, [imageData])
     
-    // Логируем ответ бота на фото
-    Logger.info(`[ЧАТ] Бот ответил на фото: "${answer.substring(0, 100)}${answer.length > 100 ? '...' : ''}"`)
+    // Логируем ответ бота на фото (используем console.log для Railway)
+    const logPhotoAnswer = `[ЧАТ] Бот ответил на фото: "${answer.substring(0, 100)}${answer.length > 100 ? '...' : ''}"`
+    console.log(logPhotoAnswer)
+    Logger.info(logPhotoAnswer)
     
     // telegram message limit
     if (answer.length > 4096) {
@@ -152,16 +160,20 @@ export async function hearsText(ctx: BotContext) {
     }
     const session = await getSession(ctx)
     
-    // Логируем что пользователь отправил
-    Logger.info(`[ЧАТ] ${session.firstname} отправил: "${ctx.message.text}"`)
+    // Логируем что пользователь отправил (используем console.log для Railway)
+    const logMessage = `[ЧАТ] ${session.firstname} отправил: "${ctx.message.text}"`
+    console.log(logMessage)
+    Logger.info(logMessage)
     
     const waitMessage = await ctx.reply(code(messages.m("waiting.text")), {
       reply_to_message_id: ctx.message.message_id,
     })
     const answer = await sendToChat(ctx, session, ctx.message.text)
     
-    // Логируем ответ бота
-    Logger.info(`[ЧАТ] Бот ответил: "${answer.substring(0, 100)}${answer.length > 100 ? '...' : ''}"`)
+    // Логируем ответ бота (используем console.log для Railway)
+    const logAnswer = `[ЧАТ] Бот ответил: "${answer.substring(0, 100)}${answer.length > 100 ? '...' : ''}"`
+    console.log(logAnswer)
+    Logger.info(logAnswer)
     // telegram message limit
     if (answer.length > 4096) {
       const parts = answer.match(/[\s\S]{1,4096}/g)!
