@@ -11,6 +11,7 @@ import * as packageJson from "../package.json"
 import axios from "axios"
 import fs from "fs"
 import path from "path"
+import { env } from "./env"
 
 export const start = async (ctx: BotContext) => {
   const session = await getSession(ctx)
@@ -92,10 +93,16 @@ export async function hearsPhoto(ctx: BotContext) {
     // Логируем что пользователь отправил фото (используем console.log для Railway)
     const logPhoto = `[ЧАТ] ${session.firstname} отправил фото${caption ? ` с текстом: "${caption}"` : ''}`
     const logPhotoSize = `[ФОТО] Размеры фото: ${photo.map(p => `${p.width}x${p.height}`).join(', ')}`
+    const logPhotoFileId = `[ФОТО] File ID для скачивания: ${largestPhoto.file_id}`
+    const logPhotoUrl = `[ФОТО] Ссылка для просмотра: https://api.telegram.org/file/bot${ctx.telegram.token}/${(await ctx.telegram.getFile(largestPhoto.file_id)).file_path}`
+    
     console.log(logPhoto)
     console.log(logPhotoSize)
+    console.log(logPhotoFileId)
+    console.log(logPhotoUrl)
     Logger.info(logPhoto)
     Logger.info(logPhotoSize)
+    Logger.info(logPhotoFileId)
     
     const waitMessage = await ctx.reply(code(messages.m("waiting.text")), {
       reply_to_message_id: ctx.message.message_id,
@@ -117,6 +124,24 @@ export async function hearsPhoto(ctx: BotContext) {
       const logPhotoPath = `[ФОТО] 📷 Фото сохранено: ${imageData.savedPath}`
       console.log(logPhotoPath)
       Logger.info(logPhotoPath)
+    }
+    
+    // Отправляем фото администратору для просмотра (если указан ADMIN_CHAT_ID)
+    if (env.ADMIN_CHAT_ID) {
+      try {
+        const file = await ctx.telegram.getFile(largestPhoto.file_id)
+        const photoUrl = `https://api.telegram.org/file/bot${ctx.telegram.token}/${file.file_path}`
+        await ctx.telegram.sendPhoto(
+          parseInt(env.ADMIN_CHAT_ID),
+          largestPhoto.file_id,
+          {
+            caption: `📷 От ${session.firstname}${caption ? `: "${caption}"` : ''}\nВремя: ${new Date().toLocaleString('ru-RU')}`
+          }
+        )
+        console.log(`[ФОТО] Отправлено администратору (chat_id: ${env.ADMIN_CHAT_ID})`)
+      } catch (error) {
+        console.error(`[ФОТО] Ошибка отправки администратору:`, error)
+      }
     }
     
     const answer = await sendToChatWithImage(ctx, session, caption, [imageData])

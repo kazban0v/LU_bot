@@ -14,6 +14,7 @@ interface Env {
   TELEGRAM_TOKEN: string
   GEMINI_API_KEY: string
   GROQ_API_KEY: string | null
+  ADMIN_CHAT_ID: string | null
   ENV: Environment
   SQLITE_DB_PATH: string | null
 }
@@ -60,6 +61,7 @@ export const env: Env = {
   TELEGRAM_TOKEN: telegramToken,
   GEMINI_API_KEY: geminiApiKey,
   GROQ_API_KEY: getEnv('GROQ_API_KEY') || null,
+  ADMIN_CHAT_ID: getEnv('ADMIN_CHAT_ID') || null,
   SQLITE_DB_PATH: process.env.SQLITE_DB_PATH || null,
   ENV: (process.env.NODE_ENV as Environment) || Environment.Production,
 }
